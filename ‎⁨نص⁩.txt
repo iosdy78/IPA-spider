@@ -3,78 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ipa.spider</title>
+    <title>مغامرة القفز السريع 🚀</title>
     <style>
         body {
             margin: 0;
-            height: 100vh;
+            padding: 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            background: radial-gradient(circle, #1a1c2c, #0a0a0a);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        /* حاوية Liquid Glass */
-        .glass-box {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 40px;
-            padding: 40px;
-            text-align: center;
-            width: 320px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-        }
-
-        h1 {
-            color: #fff;
-            font-size: 2.2rem;
-            margin-bottom: 30px;
-            font-weight: 800;
-            letter-spacing: 1px;
-        }
-
-        .btn {
-            display: block;
-            margin: 15px 0;
-            padding: 18px;
-            text-decoration: none;
+            height: 100vh;
+            background-color: #1a1a2e;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
             color: white;
-            font-size: 1.2rem;
-            font-weight: 600;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
-            transition: all 0.3s ease;
         }
-
-        /* تأثير عند تمرير الماوس */
-        .btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: scale(1.05);
-            border-color: #00d2ff;
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
-
-        /* ألوان خفيفة للأزرار */
-        .zsign { border-right: 4px solid #38bdf8; }
-        .scarlet { border-right: 4px solid #f87171; }
-        .gbox { border-right: 4px solid #fbbf24; }
-
+        canvas {
+            background-color: #16213e;
+            border-bottom: 5px solid #e94560;
+            display: block;
+            border-radius: 10px;
+        }
+        .ui {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            font-size: 20px;
+            pointer-events: none;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            font-size: 16px;
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
 
-    <div class="glass-box">
-        <h1>ipa.spider</h1>
-        
-        <a href="رابط_ZSign_هنا" class="btn zsign">ZSign</a>
+<div id="game-container">
+    <div class="ui">النقاط: <span id="score">0</span> | الأعلى: <span id="highScore">0</span></div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="instructions">اضغط على الشاشة أو زر المسافة (Space) للقفز!</div>
+</div>
 
-        <a href="رابط_Scarlet_هنا" class="btn scarlet">Scarlet</a>
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreElement = document.getElementById('score');
+    const highScoreElement = document.getElementById('highScore');
 
-        <a href="رابط_GBox_هنا" class="btn gbox">GBox</a>
-    </div>
+    // إعدادات الشاشة
+    canvas.width = 800;
+    canvas.height = 400;
 
+    // متغيرات اللعبة
+    let score = 0;
+    let highScore = localStorage.getItem('highScore') || 0;
+    highScoreElement.innerText = highScore;
+
+    let gameActive = true;
+    let gameSpeed = 5;
+    
+    // اللاعب
+    const player = {
+        x: 50,
+        y: canvas.height - 60,
+        width: 40,
+        height: 40,
+        color: '#4db8ff',
+        dy: 0,
+        jumpForce: 12,
+        gravity: 0.6,
+        grounded: false
+    };
+
+    // العقبات
+    let obstacles = [];
+
+    function spawnObstacle() {
+        let size = Math.random() * (60 - 20) + 20;
+        obstacles.push({
+            x: canvas.width,
+            y: canvas.height - size,
+            width: 30,
+            height: size,
+            color: '#e94560'
+        });
+    }
+
+    // التحكم
+    function jump() {
+        if (player.grounded && gameActive) {
+            player.dy = -player.jumpForce;
+            player.grounded = false;
+        } else if (!gameActive) {
+            resetGame();
+        }
+    }
+
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space') jump(); });
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); });
+    canvas.addEventListener('mousedown', jump);
+
+    function update() {
+        if (!gameActive) return;
+
+        // الجاذبية والقفز
+        player.dy += player.gravity;
+        player.y += player.dy;
+
+        if (player.y + player.height > canvas.height) {
+            player.y = canvas.height - player.height;
+            player.dy = 0;
+            player.grounded = true;
+        }
+
+        // تحريك العقبات
+        if (Math.random() < 0.02) {
+            if (obstacles.length === 0 || (canvas.width - obstacles[obstacles.length-1].x) > 150) {
+                spawnObstacle();
+            }
+        }
+
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            obstacles[i].x -= gameSpeed;
+
+            // التصادم
+            if (
+                player.x < obstacles[i].x + obstacles[i].width &&
+                player.x + player.width > obstacles[i].x &&
+                player.y < obstacles[i].y + obstacles[i].height &&
+                player.y + player.height > obstacles[i].y
+            ) {
+                gameOver();
+            }
+
+            // حذف العقبات التي خرجت وزيادة النقاط
+            if (obstacles[i].x + obstacles[i].width < 0) {
+                obstacles.splice(i, 1);
+                score++;
+                scoreElement.innerText = score;
+                // زيادة السرعة تدريجياً
+                gameSpeed += 0.1;
+            }
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // رسم اللاعب (مع تأثير توهج)
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = player.color;
+        ctx.fillStyle = player.color;
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+
+        // رسم العقبات
+        ctx.shadowColor = '#e94560';
+        for (let obs of obstacles) {
+            ctx.fillStyle = obs.color;
+            ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+        }
+        ctx.shadowBlur = 0;
+
+        if (!gameActive) {
+            ctx.fillStyle = "rgba(0,0,0,0.7)";
+            ctx.fillRect(0,0,canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.font = "40px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText("انتهت اللعبة! 💀", canvas.width/2, canvas.height/2);
+            ctx.font = "20px Arial";
+            ctx.fillText("اضغط للبدء من جديد", canvas.width/2, canvas.height/2 + 40);
+        }
+    }
+
+    function gameOver() {
+        gameActive = false;
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('highScore', highScore);
+            highScoreElement.innerText = highScore;
+        }
+    }
+
+    function resetGame() {
+        score = 0;
+        scoreElement.innerText = score;
+        obstacles = [];
+        gameSpeed = 5;
+        gameActive = true;
+        player.y = canvas.height - 60;
+    }
+
+    function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+</script>
 </body>
 </html>
